@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    container_name: quickstart-api
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.quickstart-api.rule=Host(`api.quickstart.life`)
+      - traefik.http.routers.quickstart-api.entrypoints=websecure
+      - traefik.http.routers.quickstart-api.tls.certresolver=letsencrypt
+      - traefik.http.services.quickstart-api.loadbalancer.server.port=3001

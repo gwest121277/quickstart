@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Quickstart mic access</title>
+    <style>
+      body {
+        background: #1C1C2E;
+        color: #E8E8EF;
+        font-family: Montserrat, system-ui, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+      .card {
+        max-width: 420px;
+        padding: 28px;
+        border: 1px solid rgba(0, 180, 166, 0.4);
+        border-radius: 12px;
+        text-align: center;
+      }
+      h1 {
+        color: #00B4A6;
+        font-family: "Bebas Neue", Impact, sans-serif;
+        letter-spacing: 2px;
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      p { margin: 8px 0; font-size: 14px; line-height: 1.5; }
+      button {
+        background: #00B4A6;
+        color: #1C1C2E;
+        border: 0;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .out { margin-top: 16px; font-size: 13px; }
+      .ok { color: #00B4A6; }
+      .err { color: #f87171; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>GRANT MIC ACCESS</h1>
+      <p>Quickstart needs your microphone to capture shutdown notes. Click once, approve, and close this tab.</p>
+      <button id="go">Allow microphone</button>
+      <div id="out" class="out"></div>
+    </div>
+    <script type="module" src="./grant.js"></script>
+  </body>
+</html>
