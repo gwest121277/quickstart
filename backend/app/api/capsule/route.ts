@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getUserFromRequest } from "@/lib/supabase";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+const HOUR = 60 * 60 * 1000;
+const MAX_PER_HOUR = 30;
+const MAX_TRANSCRIPT_CHARS = 10_000;
+const MAX_TABS = 200;
 
 const SYSTEM_PROMPT = `You are a re-entry assistant for an ADHD entrepreneur named Greg. He just stopped working on a project. Your job is to produce a capsule he can read tomorrow morning in 20 seconds and be back in his headspace.
 
@@ -65,12 +71,25 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   const auth = await getUserFromRequest(req);
   if (auth instanceof NextResponse) return auth;
-  const { db } = auth;
+  const { user, db } = auth;
+
+  if (!checkRateLimit(user.id, HOUR, MAX_PER_HOUR)) {
+    return NextResponse.json(
+      { error: "rate_limited", message: "Too many capsules this hour." },
+      { status: 429 }
+    );
+  }
 
   const body = (await req.json()) as Body;
 
   if (!body.transcript?.trim()) {
     return NextResponse.json({ error: "missing transcript" }, { status: 400 });
+  }
+  if (body.transcript.length > MAX_TRANSCRIPT_CHARS) {
+    return NextResponse.json({ error: "transcript too long" }, { status: 413 });
+  }
+  if (Array.isArray(body.tabs) && body.tabs.length > MAX_TABS) {
+    return NextResponse.json({ error: "too many tabs" }, { status: 413 });
   }
 
   let projectName = body.project_name ?? "Quickstart.life";
