@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { supabaseAdmin, currentUserId } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +63,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await getUserFromRequest(req);
+  if (auth instanceof NextResponse) return auth;
+  const { db } = auth;
+
   const body = (await req.json()) as Body;
 
   if (!body.transcript?.trim()) {
@@ -75,11 +79,9 @@ export async function POST(req: NextRequest) {
     "Ship v1 of Quickstart.life, a re-entry tool for Greg himself.";
 
   if (body.project_id) {
-    const db = supabaseAdmin();
     const { data } = await db
       .from("projects")
       .select("name, ultimate_goal")
-      .eq("user_id", currentUserId())
       .eq("id", body.project_id)
       .maybeSingle();
     if (data) {

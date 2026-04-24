@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, currentUserId } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +11,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await getUserFromRequest(req);
+  if (auth instanceof NextResponse) return auth;
+  const { db } = auth;
+
   const body = (await req.json()) as Body;
   if (!body.id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -20,7 +24,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "name required" }, { status: 400 });
   }
 
-  const db = supabaseAdmin();
   const { data, error } = await db
     .from("projects")
     .update({
@@ -28,7 +31,6 @@ export async function POST(req: NextRequest) {
       ultimate_goal: body.ultimate_goal?.toString().trim() || null,
     })
     .eq("id", body.id)
-    .eq("user_id", currentUserId())
     .select("id, name, ultimate_goal, created_at")
     .single();
 

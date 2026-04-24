@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, currentUserId } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,16 +19,19 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await getUserFromRequest(req);
+  if (auth instanceof NextResponse) return auth;
+  const { user, db } = auth;
+
   const body = (await req.json()) as Body;
   if (!body.project_id) {
     return NextResponse.json({ error: "project_id required" }, { status: 400 });
   }
 
-  const db = supabaseAdmin();
   const { data, error } = await db
     .from("capsules")
     .insert({
-      user_id: currentUserId(),
+      user_id: user.id,
       project_id: body.project_id,
       tabs: body.tabs ?? [],
       raw_transcript: body.raw_transcript ?? null,

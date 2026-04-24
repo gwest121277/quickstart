@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getUserFromRequest } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,9 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await getUserFromRequest(req);
+  if (auth instanceof NextResponse) return auth;
+
   const form = await req.formData();
   const audio = form.get("audio");
 

@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  authedFetch,
+  AuthError,
+  getSession,
+  Session,
+  signInWithGoogle,
+  signOut,
+} from "./auth";
 
 type Tab = {
   url: string;
@@ -27,7 +35,7 @@ type Project = {
   ultimate_goal: string | null;
 };
 
-const API_BASE = "http://localhost:3001";
+const API_BASE = "https://api.quickstart.life";
 const MAX_SECONDS = 30;
 
 async function grabTabs(): Promise<Tab[]> {
@@ -51,6 +59,10 @@ type Status =
   | "error";
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [projectsLoadError, setProjectsLoadError] = useState(false);
@@ -81,20 +93,55 @@ export default function App() {
       }
     );
 
-    loadProjects();
+    (async () => {
+      const s = await getSession();
+      setSession(s);
+      setSessionLoaded(true);
+      if (s) loadProjects();
+    })();
+
     return () => stopStream();
   }, []);
 
+  async function handleSignIn() {
+    setSignInError("");
+    setSigningIn(true);
+    try {
+      const s = await signInWithGoogle();
+      setSession(s);
+      loadProjects();
+    } catch (e) {
+      setSignInError(e instanceof Error ? e.message : "sign-in failed");
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  async function handleSignOut() {
+    await signOut();
+    setSession(null);
+    setProjects([]);
+    setProjectsLoaded(false);
+    setProjectId("");
+    setCapsule(null);
+    setTranscript("");
+    setManageOpen(false);
+  }
+
   async function loadProjects() {
     try {
-      const r = await fetch(`${API_BASE}/api/projects`);
+      const r = await authedFetch(`${API_BASE}/api/projects`);
       if (!r.ok) throw new Error(`projects ${r.status}`);
       const j = await r.json();
       if (j.projects) setProjects(j.projects);
       if (typeof j.has_any_capsules === "boolean")
         setHasAnyCapsules(j.has_any_capsules);
       setProjectsLoadError(false);
-    } catch {
+    } catch (e) {
+      if (e instanceof AuthError) {
+        setSession(null);
+        return;
+      }
       setProjectsLoadError(true);
     } finally {
       setProjectsLoaded(true);
@@ -190,7 +237,7 @@ export default function App() {
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
       const fd = new FormData();
       fd.append("audio", blob, "shutdown.webm");
-      const tRes = await fetch(`${API_BASE}/api/transcribe`, {
+      const tRes = await authedFetch(`${API_BASE}/api/transcribe`, {
         method: "POST",
         body: fd,
       });
@@ -199,7 +246,7 @@ export default function App() {
       setTranscript(t ?? "");
 
       setStatus("synthesizing");
-      const cRes = await fetch(`${API_BASE}/api/capsule`, {
+      const cRes = await authedFetch(`${API_BASE}/api/capsule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -215,7 +262,7 @@ export default function App() {
       const { capsule: cap } = await cRes.json();
 
       setStatus("saving");
-      const sRes = await fetch(`${API_BASE}/api/save`, {
+      const sRes = await authedFetch(`${API_BASE}/api/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -236,6 +283,10 @@ export default function App() {
       setCapsule(cap);
       setStatus("done");
     } catch (err) {
+      if (err instanceof AuthError) {
+        setSession(null);
+        return;
+      }
       setStatus("error");
       setErrorMsg(err instanceof Error ? err.message : "pipeline failed");
     }
@@ -250,7 +301,7 @@ export default function App() {
     setErrorMsg("");
     setStatus("picking");
     try {
-      const res = await fetch(
+      const res = await authedFetch(
         `${API_BASE}/api/pickup?project_id=${encodeURIComponent(projectId)}`
       );
       if (!res.ok) throw new Error(`pickup ${res.status}`);
@@ -272,6 +323,10 @@ export default function App() {
         reopenTabs(pickedTabs);
       }
     } catch (err) {
+      if (err instanceof AuthError) {
+        setSession(null);
+        return;
+      }
       setStatus("error");
       setErrorMsg(err instanceof Error ? err.message : "pickup failed");
     }
@@ -301,6 +356,42 @@ export default function App() {
     setShowResumeTip(false);
     setSeenResumeTip(true);
     await chrome.storage.local.set({ seenResumeTip: true });
+  }
+
+  if (!sessionLoaded) {
+    return (
+      <div className="p-4 space-y-4">
+        <h1 className="font-head text-3xl tracking-wide text-teal leading-none">
+          QUICKSTART
+        </h1>
+        <p className="text-xs text-soft/60">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="p-4 space-y-4">
+        <h1 className="font-head text-3xl tracking-wide text-teal leading-none">
+          QUICKSTART
+        </h1>
+        <div className="border border-teal/40 rounded-lg p-4 space-y-3 bg-charcoal">
+          <p className="text-sm leading-snug">
+            Sign in to start a project.
+          </p>
+          <button
+            onClick={handleSignIn}
+            disabled={signingIn}
+            className="w-full bg-teal text-charcoal font-semibold py-2 rounded text-sm disabled:opacity-40"
+          >
+            {signingIn ? "Opening Google..." : "Sign in with Google"}
+          </button>
+          {signInError && (
+            <p className="text-xs text-red-400">Error: {signInError}</p>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (projectsLoadError && !manageOpen) {
@@ -390,6 +481,8 @@ export default function App() {
       {manageOpen && (
         <ManagePanel
           projects={projects}
+          session={session}
+          onSignOut={handleSignOut}
           onChanged={async () => {
             await loadProjects();
           }}
@@ -531,11 +624,15 @@ export default function App() {
 
 function ManagePanel({
   projects,
+  session,
+  onSignOut,
   onChanged,
   onCreated,
   onDeleted,
 }: {
   projects: Project[];
+  session: Session;
+  onSignOut: () => void;
   onChanged: () => Promise<void>;
   onCreated: (project: Project) => void;
   onDeleted: (id: string) => void;
@@ -550,7 +647,7 @@ function ManagePanel({
     setBusy(true);
     setErr("");
     try {
-      const r = await fetch(`${API_BASE}/api/project/create`, {
+      const r = await authedFetch(`${API_BASE}/api/project/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim(), ultimate_goal: newGoal.trim() }),
@@ -613,6 +710,18 @@ function ManagePanel({
           />
         ))}
       </div>
+
+      <div className="border-t border-soft/15 pt-3 flex items-center justify-between">
+        {session.email && (
+          <p className="text-[11px] text-soft/60 truncate">{session.email}</p>
+        )}
+        <button
+          onClick={onSignOut}
+          className="text-[11px] text-soft/60 hover:text-teal shrink-0"
+        >
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }
@@ -642,7 +751,7 @@ function ProjectRow({
     setBusy(true);
     setErr("");
     try {
-      const r = await fetch(`${API_BASE}/api/project/update`, {
+      const r = await authedFetch(`${API_BASE}/api/project/update`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -670,7 +779,7 @@ function ProjectRow({
     setBusy(true);
     setErr("");
     try {
-      const r = await fetch(`${API_BASE}/api/project/delete`, {
+      const r = await authedFetch(`${API_BASE}/api/project/delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: project.id }),

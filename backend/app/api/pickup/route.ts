@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, currentUserId } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,16 +16,18 @@ function gapType(createdAt: string): "short" | "overnight" | "long" {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await getUserFromRequest(req);
+  if (auth instanceof NextResponse) return auth;
+  const { db } = auth;
+
   const projectId = req.nextUrl.searchParams.get("project_id");
   if (!projectId) {
     return NextResponse.json({ error: "project_id required" }, { status: 400 });
   }
 
-  const db = supabaseAdmin();
   const { data, error } = await db
     .from("capsules")
     .select("*, projects(name, ultimate_goal)")
-    .eq("user_id", currentUserId())
     .eq("project_id", projectId)
     .order("created_at", { ascending: false })
     .limit(1)

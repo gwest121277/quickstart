@@ -23,8 +23,11 @@
     "service_worker": "src/background.js",
     "type": "module"
   },
-  "permissions": ["tabs", "activeTab", "storage"],
-  "host_permissions": ["http://localhost:3001/*"],
+  "permissions": ["tabs", "activeTab", "storage", "identity"],
+  "host_permissions": [
+    "https://api.quickstart.life/*",
+    "https://qjudwaprmyicbtznjjlj.supabase.co/*"
+  ],
   "web_accessible_resources": [
     {
       "resources": ["src/permission/index.html"],
