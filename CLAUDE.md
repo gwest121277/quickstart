@@ -13,10 +13,9 @@ MV3 Chrome extension + Next.js backend + Supabase. Shutdown flow shows a prep sc
 - **No em-dashes, no "system" in copy**: enforced by Greg's rules. Watch for these in any new strings.
 
 ## What's next
-No code work locked in. Greg's next real moves are distribution:
-- Pin the extension ID via a `key` field in `manifest.json` before publishing, so the Chrome Web Store install gets the same ID as Greg's dev install (saves re-adding a redirect URL in Supabase later).
-- Publish to Chrome Web Store ($5 one-time, 1-3 day review). Until then, friends need to be added as Google OAuth test users AND load the built `dist/` folder unpacked on a personal (non-work) machine.
-- Publish the OAuth consent screen to "Production" so the test-users cap goes away.
+- **Submitted to Chrome Web Store on 2026-04-24.** Google's review queue. Host-permission review extends typical 1-3 day approval to 1-2 weeks. Item ID assigned by the store: `dihjcledldacijfnkkidcbgcfmogbcpc`. Greg's dev install retains its old ID (`loakdpdkc...`); both redirect URLs are in Supabase's allowlist so both can sign in.
+- **OAuth consent screen is in Production**, so once the extension is published any Google user can sign in (no test-user list).
+- **If Greg ever wants to dodge the host-permission in-depth review for future updates**: rewrite `manifest.json` to use `optional_host_permissions` and request access at runtime via `chrome.permissions.request`. ~30-45 min of work; cuts review time back to 1-3 days.
 - Future monetization (paid tier + 7-day trial) is a `subscriptions` table + Stripe + a plan-check middleware. Auth already separated cleanly, so this bolts on without touching the sign-in path.
 
 ## Gotchas

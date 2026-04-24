@@ -50,7 +50,9 @@ async function grabTabs(): Promise<Tab[]> {
 
 type Status =
   | "idle"
+  | "prepping"
   | "recording"
+  | "typing"
   | "uploading"
   | "synthesizing"
   | "saving"
@@ -73,6 +75,8 @@ export default function App() {
   const [showResumeTip, setShowResumeTip] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [transcript, setTranscript] = useState("");
+  const [typedText, setTypedText] = useState("");
+  const [showNote, setShowNote] = useState(false);
   const [capsule, setCapsule] = useState<Capsule | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -181,7 +185,7 @@ export default function App() {
     });
   }
 
-  async function startShutdown() {
+  async function prepShutdown() {
     if (!projectId) {
       setErrorMsg("Pick a project first");
       setStatus("error");
@@ -195,7 +199,90 @@ export default function App() {
       const snapped = await grabTabs();
       setTabs(snapped);
       tabsRef.current = snapped;
+      setStatus("prepping");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err instanceof Error ? err.message : "could not read tabs");
+    }
+  }
 
+  function cancelPrep() {
+    setStatus("idle");
+    setErrorMsg("");
+  }
+
+  function switchToTyping() {
+    setTypedText("");
+    setErrorMsg("");
+    setStatus("typing");
+  }
+
+  function cancelTyping() {
+    setStatus("idle");
+    setTypedText("");
+    setErrorMsg("");
+  }
+
+  async function submitTypedText() {
+    const t = typedText.trim();
+    if (!t) {
+      setErrorMsg("Type something first");
+      return;
+    }
+    setErrorMsg("");
+    setTranscript(t);
+    setStatus("synthesizing");
+
+    try {
+      const cRes = await authedFetch(`${API_BASE}/api/capsule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: t,
+          tabs: tabsRef.current,
+          project_id: projectId,
+        }),
+      });
+      if (!cRes.ok) {
+        const detail = await cRes.text().catch(() => "");
+        throw new Error(`capsule ${cRes.status}${detail ? ` ${detail.slice(0, 120)}` : ""}`);
+      }
+      const { capsule: cap } = await cRes.json();
+
+      setStatus("saving");
+      const sRes = await authedFetch(`${API_BASE}/api/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: projectId,
+          tabs: tabsRef.current,
+          raw_transcript: t,
+          synthesis: cap.synthesis,
+          next_move: cap.next_move,
+          key_noun: cap.key_noun,
+          loose_threads: cap.loose_threads,
+        }),
+      });
+      if (!sRes.ok) {
+        const detail = await sRes.text().catch(() => "");
+        throw new Error(`save ${sRes.status}${detail ? ` ${detail.slice(0, 120)}` : ""}`);
+      }
+
+      setCapsule(cap);
+      setStatus("done");
+    } catch (err) {
+      if (err instanceof AuthError) {
+        setSession(null);
+        return;
+      }
+      setStatus("error");
+      setErrorMsg(err instanceof Error ? err.message : "pipeline failed");
+    }
+  }
+
+  async function startRecording() {
+    setErrorMsg("");
+    try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       chunksRef.current = [];
@@ -333,6 +420,8 @@ export default function App() {
   }
 
   const recording = status === "recording";
+  const prepping = status === "prepping";
+  const typing = status === "typing";
   const working =
     status === "uploading" ||
     status === "synthesizing" ||
@@ -458,7 +547,7 @@ export default function App() {
       <select
         value={projectId}
         onChange={(e) => setProjectId(e.target.value)}
-        disabled={working || recording}
+        disabled={working || recording || prepping || typing}
         className="w-full bg-charcoal border border-soft/30 text-soft rounded py-1.5 px-2 text-sm"
       >
         <option value="">Pick a project...</option>
@@ -508,7 +597,7 @@ export default function App() {
         </div>
       )}
 
-      {!capsule && (
+      {!capsule && !prepping && !typing && (
         <>
           <div className="grid grid-cols-2 gap-2">
             {!recording && !working && (
@@ -524,7 +613,7 @@ export default function App() {
                   Resume
                 </button>
                 <button
-                  onClick={startShutdown}
+                  onClick={prepShutdown}
                   disabled={!projectId}
                   className={
                     "bg-teal text-charcoal font-semibold py-2 rounded text-sm disabled:opacity-40 hover:brightness-110 " +
@@ -560,6 +649,86 @@ export default function App() {
         </>
       )}
 
+      {prepping && (
+        <div className="space-y-3">
+          <div className="border border-teal/40 rounded-lg p-3 bg-charcoal space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-soft/60">
+              Talk about
+            </p>
+            <ul className="text-sm leading-snug space-y-1 list-disc list-inside text-soft">
+              <li>What you were in the middle of</li>
+              <li>What you want to do next</li>
+              <li>Anything you don't want to forget</li>
+            </ul>
+            <p className="text-[11px] text-soft/60 leading-snug pt-1">
+              You'll have {MAX_SECONDS} seconds. Start when you're ready.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={cancelPrep}
+              className="bg-charcoal border border-soft/30 text-soft font-semibold py-2 rounded text-sm hover:bg-soft/5"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={startRecording}
+              className="bg-teal text-charcoal font-semibold py-2 rounded text-sm hover:brightness-110"
+            >
+              Start recording
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <button
+              onClick={switchToTyping}
+              className="text-[11px] text-soft/70 hover:text-teal underline underline-offset-2"
+            >
+              No mic? Input manually
+            </button>
+          </div>
+          <p className="text-xs text-soft/60 text-center">{tabs.length} tabs</p>
+        </div>
+      )}
+
+      {typing && (
+        <div className="space-y-3">
+          <div className="border border-teal/40 rounded-lg p-3 bg-charcoal space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-soft/60">
+              Write about
+            </p>
+            <ul className="text-sm leading-snug space-y-1 list-disc list-inside text-soft">
+              <li>What you were in the middle of</li>
+              <li>What you want to do next</li>
+              <li>Anything you don't want to forget</li>
+            </ul>
+          </div>
+          <textarea
+            value={typedText}
+            onChange={(e) => setTypedText(e.target.value)}
+            placeholder="Type here..."
+            rows={5}
+            autoFocus
+            className="w-full bg-charcoal border border-soft/30 rounded px-2 py-2 text-sm resize-none"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={cancelTyping}
+              className="bg-charcoal border border-soft/30 text-soft font-semibold py-2 rounded text-sm hover:bg-soft/5"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submitTypedText}
+              disabled={!typedText.trim()}
+              className="bg-teal text-charcoal font-semibold py-2 rounded text-sm disabled:opacity-40 hover:brightness-110"
+            >
+              Submit
+            </button>
+          </div>
+          <p className="text-xs text-soft/60 text-center">{tabs.length} tabs</p>
+        </div>
+      )}
+
       {errorMsg && (
         <div className="space-y-2">
           <p className="text-xs text-red-400">Error: {errorMsg}</p>
@@ -584,12 +753,17 @@ export default function App() {
 
           {transcript && (
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-soft/60 mb-1">
-                Your note
-              </p>
-              <p className="text-xs text-soft/80 whitespace-pre-wrap leading-snug">
-                {transcript}
-              </p>
+              <button
+                onClick={() => setShowNote((v) => !v)}
+                className="text-[10px] uppercase tracking-wider text-soft/60 hover:text-teal"
+              >
+                {showNote ? "Hide note" : "Show note"}
+              </button>
+              {showNote && (
+                <p className="text-xs text-soft/80 whitespace-pre-wrap leading-snug mt-1">
+                  {transcript}
+                </p>
+              )}
             </div>
           )}
 
@@ -881,7 +1055,7 @@ function Card({
   const short = capsule.gap_type === "short";
 
   return (
-    <div className="border border-teal/40 rounded-lg p-3 space-y-3 bg-charcoal">
+    <div className="border border-teal/40 rounded-lg p-3 space-y-2 bg-charcoal">
       {showTip && (
         <div className="bg-teal/10 border border-teal/40 rounded p-2 flex items-start justify-between gap-2">
           <p className="text-xs leading-snug">
@@ -894,11 +1068,6 @@ function Card({
             Got it
           </button>
         </div>
-      )}
-      {capsule.ultimate_goal && (
-        <p className="text-[10px] uppercase tracking-wider text-soft/50">
-          {capsule.ultimate_goal}
-        </p>
       )}
 
       <div className="text-teal font-head text-2xl tracking-wide leading-none">

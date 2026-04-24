@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Quickstart.life",
   "version": "0.1.0",
-  "description": "Capture your headspace at shutdown, re-enter fast.",
+  "description": "ADHD friendly. Switch tasks fast without losing your train of thought. Re-enter with a full summary of where you left off.",
   "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "Quickstart",
