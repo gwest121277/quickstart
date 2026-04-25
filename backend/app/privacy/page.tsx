@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Quickstart.life Privacy Policy",
+  title: "Recapture Privacy Policy",
 };
 
 export default function PrivacyPage() {
@@ -14,12 +14,12 @@ export default function PrivacyPage() {
     >
       <h1 style={{ color: "#00B4A6", marginBottom: 8 }}>Privacy Policy</h1>
       <p style={{ color: "#888", marginTop: 0 }}>
-        Quickstart.life Chrome extension. Last updated April 24, 2026.
+        Recapture Chrome extension. Last updated April 25, 2026.
       </p>
 
       <h2>What this extension does</h2>
       <p>
-        Quickstart.life helps you capture what you were working on at the end of
+        Recapture helps you save what you were working on at the end of
         a session so you can pick back up fast. When you choose "Shut down", it
         records up to 30 seconds of your voice (or lets you type instead),
         captures the URLs and titles of your open tabs, and uses AI to turn

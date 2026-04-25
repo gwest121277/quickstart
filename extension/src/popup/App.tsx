@@ -451,7 +451,7 @@ export default function App() {
     return (
       <div className="p-4 space-y-4">
         <h1 className="font-head text-3xl tracking-wide text-teal leading-none">
-          QUICKSTART
+          RECAPTURE
         </h1>
         <p className="text-xs text-soft/60">Loading...</p>
       </div>
@@ -462,7 +462,7 @@ export default function App() {
     return (
       <div className="p-4 space-y-4">
         <h1 className="font-head text-3xl tracking-wide text-teal leading-none">
-          QUICKSTART
+          RECAPTURE
         </h1>
         <div className="border border-teal/40 rounded-lg p-4 space-y-3 bg-charcoal">
           <p className="text-sm leading-snug">
@@ -487,7 +487,7 @@ export default function App() {
     return (
       <div className="p-4 space-y-4">
         <h1 className="font-head text-3xl tracking-wide text-teal leading-none">
-          QUICKSTART
+          RECAPTURE
         </h1>
         <div className="border border-red-400/40 rounded-lg p-4 space-y-3 bg-charcoal">
           <p className="text-sm leading-snug text-red-300">
@@ -514,7 +514,7 @@ export default function App() {
     return (
       <div className="p-4 space-y-4">
         <h1 className="font-head text-3xl tracking-wide text-teal leading-none">
-          QUICKSTART
+          RECAPTURE
         </h1>
         <div className="border border-teal/40 rounded-lg p-4 space-y-3 bg-charcoal">
           <p className="text-sm leading-snug">
@@ -535,7 +535,7 @@ export default function App() {
     <div className="p-4 space-y-3">
       <div>
         <h1 className="font-head text-3xl tracking-wide text-teal leading-none">
-          QUICKSTART
+          RECAPTURE
         </h1>
         {selectedProject?.ultimate_goal && (
           <p className="text-xs text-soft/70 italic leading-snug mt-1">

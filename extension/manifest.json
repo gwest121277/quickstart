@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Quickstart.life",
+  "name": "Recapture",
   "version": "0.1.0",
-  "description": "ADHD friendly. Switch tasks fast without losing your train of thought. Re-enter with a full summary of where you left off.",
+  "description": "Pick up where you left off. Capture your thoughts at the end of a session and re-enter fast next time you return.",
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "Quickstart",
+    "default_title": "Recapture",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
@@ -23,7 +23,7 @@
     "service_worker": "src/background.js",
     "type": "module"
   },
-  "permissions": ["tabs", "activeTab", "storage", "identity"],
+  "permissions": ["tabs", "storage", "identity"],
   "host_permissions": [
     "https://api.quickstart.life/*",
     "https://qjudwaprmyicbtznjjlj.supabase.co/*"
